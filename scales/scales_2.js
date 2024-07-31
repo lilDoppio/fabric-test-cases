@@ -11,6 +11,11 @@ let scaleLine = null;
 let leftCup = null;
 let rightCup = null;
 
+let leftCupLeftString = null;
+let leftCupRightString = null;
+let rightCupLeftString = null;
+let rightCupRightString = null;
+
 let leftBall = null;
 let rightBall = null;
 
@@ -22,6 +27,8 @@ let rightBallRadius = 40;
 
 let rightBallVal = 40;
 let leftBallVal = 40;
+
+let lastSavedAngle = 0;
 
 drowScales();
 
@@ -57,7 +64,7 @@ function drowScales() {
     width: scaleLineWidth,
     height: 10,
     fill: "grey",
-    // selectable: false,
+    selectable: false,
     originX: "center",
     originY: "center",
   });
@@ -77,6 +84,36 @@ function drowScales() {
 
   canvas.add(leftCup);
 
+  leftCupLeftString = new fabric.Line(
+    [
+      canvas.width / 2 - scaleLineWidth / 2,
+      canvas.height / 2 - scaleLineWidth / 2,
+      canvas.width / 2 - scaleLineWidth / 2 - cupWidth / 2,
+      canvas.height / 2,
+    ],
+    {
+      stroke: "black",
+      selectable: false,
+    }
+  );
+
+  canvas.add(leftCupLeftString);
+
+  leftCupRightString = new fabric.Line(
+    [
+      canvas.width / 2 - scaleLineWidth / 2,
+      canvas.height / 2 - scaleLineWidth / 2,
+      canvas.width / 2 - scaleLineWidth / 2 + cupWidth / 2,
+      canvas.height / 2,
+    ],
+    {
+      stroke: "black",
+      selectable: false,
+    }
+  );
+
+  canvas.add(leftCupRightString);
+
   rightCup = new fabric.Rect({
     top: canvas.height / 2,
     left: canvas.width / 2 + scaleLineWidth / 2,
@@ -89,6 +126,36 @@ function drowScales() {
   });
 
   canvas.add(rightCup);
+
+  rightCupLeftString = new fabric.Line(
+    [
+      canvas.width / 2 + scaleLineWidth / 2,
+      canvas.height / 2 - scaleLineWidth / 2,
+      canvas.width / 2 + scaleLineWidth / 2 - cupWidth / 2,
+      canvas.height / 2,
+    ],
+    {
+      stroke: "black",
+      selectable: false,
+    }
+  );
+
+  canvas.add(rightCupLeftString);
+
+  rightCupRightString = new fabric.Line(
+    [
+      canvas.width / 2 + scaleLineWidth / 2,
+      canvas.height / 2 - scaleLineWidth / 2,
+      canvas.width / 2 + scaleLineWidth / 2 + cupWidth / 2,
+      canvas.height / 2,
+    ],
+    {
+      stroke: "black",
+      selectable: false,
+    }
+  );
+
+  canvas.add(rightCupRightString);
 
   leftBall = new fabric.Circle({
     radius: leftBallRadius,
@@ -159,44 +226,56 @@ function calcAngleResult() {
 
       const key = fixedAngle;
 
+      const marginOfXError = 10;
+      const marginOfYError = 0;
+
       if (!i) {
         savedAngleResults.left[key] = {};
-        savedAngleResults.left[key].left = xPos;
-        savedAngleResults.left[key].top = opt.translateY;
+        savedAngleResults.left[key].left = xPos - marginOfXError;
+        savedAngleResults.left[key].top = opt.translateY - marginOfYError;
       } else {
         savedAngleResults.right[key] = {};
-        savedAngleResults.right[key].left = xPos;
-        savedAngleResults.right[key].top = opt.translateY;
+        savedAngleResults.right[key].left = xPos - marginOfXError;
+        savedAngleResults.right[key].top = opt.translateY - marginOfYError;
       }
     });
   }
 }
 
-console.log("savedAngleResults", savedAngleResults);
-
 function objectsBinding() {
-  const cups = [leftCup, rightCup];
+  const bindObjects = [
+    leftCup,
+    rightCup,
+    leftCupLeftString,
+    leftCupRightString,
+    rightCupLeftString,
+    rightCupRightString,
+  ];
+
   const scaleLineTransform = scaleLine.calcTransformMatrix();
   const invertedScaleLineTransform = invert(scaleLineTransform);
-  cups.forEach((o) => {
+
+  bindObjects.forEach((o) => {
     const desiredTransform = multiply(
       invertedScaleLineTransform,
       o.calcTransformMatrix()
     );
+
     o.relationship = desiredTransform;
   });
 }
 
-////
+updateScales();
 
-updateAll();
-
-function updateAll(prevRightBallVal, prevLeftBallVal) {
+function updateScales(prevRightBallVal, prevLeftBallVal) {
   rightBallVal = rightBallRadius * rightBall.zoomX;
   leftBallVal = leftBallRadius * leftBall.zoomX;
 
   if (rightBallVal === prevRightBallVal && leftBallVal === prevLeftBallVal) {
-    return setTimeout(() => updateAll(rightBallVal, leftBallVal), frameDilay);
+    return setTimeout(
+      () => updateScales(rightBallVal, leftBallVal),
+      frameDilay
+    );
   }
 
   let scaleAngle;
@@ -218,10 +297,8 @@ function updateAll(prevRightBallVal, prevLeftBallVal) {
   const balls = [leftBall, rightBall];
   balls.forEach((ball) => updateBall(ball));
 
-  setTimeout(() => updateAll(rightBallVal, leftBallVal), frameDilay);
+  setTimeout(() => updateScales(rightBallVal, leftBallVal), frameDilay);
 }
-
-let lastSavedAngle = scaleLine.angle.toFixed(2);
 
 onScaleUpdate();
 
@@ -232,17 +309,46 @@ function onScaleUpdate() {
 
   lastSavedAngle = scaleLine.angle.toFixed(2);
 
+  const strings = [
+    leftCupLeftString,
+    leftCupRightString,
+    rightCupLeftString,
+    rightCupRightString,
+  ];
+  strings.forEach((string, i) => updateStrings(string, i));
+
   const cups = [leftCup, rightCup];
   cups.forEach((cup, i) => updateCups(cup, i));
 
   const balls = [leftBall, rightBall];
   balls.forEach((ball) => updateBall(ball));
 
-  const dateMs = new Date().getMilliseconds();
-  console.log("dateMs", dateMs);
-  canvas.requestRenderAll();
-
   setTimeout(() => onScaleUpdate(), frameDilay);
+}
+
+function updateStrings(string, i) {
+  if (!string.relationship) {
+    return;
+  }
+
+  const currAngle = scaleLine.angle.toFixed(2);
+  let stringPos = null;
+
+  if (i < 2) {
+    stringPos = savedAngleResults.left[currAngle];
+  } else {
+    stringPos = savedAngleResults.right[currAngle];
+  }
+
+  if (!stringPos) return;
+
+  let posX = stringPos.left;
+
+  if (i === 0 || i === 2) {
+    posX -= cupWidth / 2;
+  }
+
+  string.setPositionByOrigin({ x: posX, y: stringPos.top }, "left", "bottom");
 }
 
 function updateCups(cup, i) {
